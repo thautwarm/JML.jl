@@ -64,16 +64,17 @@ end
     DBlock(elts::Vector{DExp})
     DCall(f::DExp, args::Vector{DExp})
     DList(elts::Vector{DExp})
-    DLoc(loc::Any, val::DExp)
+    DLoc(lineno::Int, colno::Int, val::DExp)
     DStaged(val :: Any)
-    DModule(modname::String, exports::Vector{Pair{String, String}}, stmts::Vector{DExp})
+    DImport(paths::Vector{String}, name::String)
+    DModule(modname::String, exports::Vector{Tuple{String, String}}, stmts::Vector{DExp})
 end
 
 global_scope(shallow_buitins::Dict{String, String}) = Scope(Ref(0), shallow_buitins, Hash(), nothing)
 
 function sa(scope::Scope, lexp::LExp)
     @match lexp begin
-        LLoc(l, v) => DLoc(l, sa(scope, v))
+        LLoc(l, v) => DLoc(l.lineno, l.colno, sa(scope, v))
         LStaged(v) => DStaged(v)
         # LDefine(s, v) =>
         #     let s = enter!(scope, s), ns = new!(scope)
@@ -121,13 +122,16 @@ function sa(scope::Scope, lexp::LExp)
                                                      DAssign(ss, sa(ns, v))
                                                    end
                                          end
+                        LImport(paths, name) => let ss = enter!(scope, name)
+                                                    () -> DImport(paths, name)
+                                                end
                         a => let a = a; () -> sa(scope, a) end
                     end
                 end |> fs ->
                 let _ = for each in fs
                             push!(block, each())
                         end
-                    DModule(modname, collect(pairs) , block)
+                    DModule(modname, [(a, b) for (a, b) in pairs] , block)
                 end
             end
     end

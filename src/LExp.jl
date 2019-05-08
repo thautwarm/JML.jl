@@ -13,6 +13,7 @@ using DataStructures
     LDefine(String, LExp)
     LLoc(Any, LExp)
     LStaged(Any)
+    LImport(Vector{String}, String)
 
     LCustom(LExp, Vector{Tuple{String, LExp}})    # *
     LInfix(String, Int, Bool)                     # *
@@ -62,8 +63,13 @@ function _pack(a::RCustom)
     s
 end
 _pack(::Nothing) = []
-
+to_lexp(s:: RInfix) = LLoc(s.loc, LInfix(s.name, parse(Int, s.prec), s.is_right))
 to_lexp(s:: RExp) = !s.do_custom ? to_lexp(s.top) : LCustom(to_lexp(s.top), _pack(s.custom))
 to_lexp(s:: RDefine) = LDefine(s.name, to_lexp(s.value))
-to_lexp(s:: RInfix) = LLoc(s.loc, LInfix(s.name, parse(Int, s.prec), s.is_right))
+to_lexp(s:: RImport) =
+    @when let [init..., last] = s.paths
+        LLoc(s.loc, LImport(collect(init), last))
+    @otherwise
+        throw("invalid import")
+    end
 to_lexp(s:: RModule) = LLoc(s.loc, LModule(s.name, s.params, [to_lexp(e) for e in s.stmts]))

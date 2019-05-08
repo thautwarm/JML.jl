@@ -5,7 +5,6 @@ version = "0.1.0"
 
 [deps]
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-JSON2 = "2535ab7d-5cd8-5a07-80ac-9b1792aadce3"
 MLStyle = "d8e11817-5142-5d16-987a-aa16d5891078"
 PrettyPrint = "8162dcfd-2161-5ef2-ae6c-7681170c5f98"
 RBNF = "83ef0002-5b9e-11e9-219b-65bac3c6d69c"
