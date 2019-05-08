@@ -1,0 +1,21 @@
+@data LExp begin
+    LLet(Bool, Vector{Tuple{String, LExp}}, LExp)
+    LFun(Vector{String}, LExp)                   
+    LMatch(LExp, Vector{Tuple{LExp, LExp}})       # *
+    LIf(LExp, LExp, LExp)                  
+    LConst{T} :: T => LExp
+    LVar(String)
+    LBlock(Vector{LExp})
+    LAttr(LExp, String)                           # *
+    LCall(LExp, Vector{LExp})
+    LList(Vector{LExp})
+    LBin(Vector{Union{LExp, Token}})              # *
+    LInfix(String, Int, Bool)
+    LDefine(String, LExp)
+    LModule(String, Vector{String}, Vector{LExp}) # *
+    LCustom(LExp, Vector{Tuple{String, LExp}})
+    LLoc(Any, LExp)
+    LScope(Scope{Asoc}, LExp)
+    LImport(Vector{String}, String)
+    LStaged(Any)
+end
