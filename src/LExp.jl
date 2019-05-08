@@ -22,7 +22,7 @@ using DataStructures
     LAttr(LExp, String)                           # *
 end
 
-to_lexp(s :: RStr) = LLoc(s.loc, LConst(s.value))
+to_lexp(s :: RStr) = LLoc(get_loc(s.value), LConst(s.value.str))
 to_lexp(s :: RLet) = LLoc(s.loc, LLet(s.rec, [(each.name, to_lexp(each.value)) for each in s.binds], to_lexp(s.body)))
 to_lexp(s :: RFun) = LLoc(s.loc, LFun(s.args), to_lexp(s.body))
 to_lexp(s :: RMatch) = LLoc(s.loc, LMatch(to_lexp(s.sc), [(to_lexp(a), to_lexp(b)) for (a, b) in s.cases]))

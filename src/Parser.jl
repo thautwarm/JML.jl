@@ -9,15 +9,6 @@ end
 second((a, b)) = b
 second(vec::V) where V <: AbstractArray = vec[2]
 
-escape(a) = @match a begin
-    '\\'  => '\\'
-    '"'   => '"'
-    'a'   => '\a'
-    'n'   => '\n'
-    'r'   => '\r'
-    a     => throw(a)
-end
-
 join_token_as_str = xs -> join(x.str for x in xs)
 
 maybe_to_bool(::Some{Nothing}) = false
@@ -45,15 +36,14 @@ RBNF.typename(name:: Symbol, ::Type{ReMLLang}) = Symbol(:R, name)
 
 RBNF.@parser ReMLLang begin
     # define the ignores
-    ignore{space}
+    ignore{space, comment}
 
     # define keywords
     reserved = [true, false]
 
     @grammar
     # necessary
-    Str       :=  [loc='"' %get_loc, value = Escape{*} % join_token_as_str, '"']
-    Escape    =  (('\\', _) % (escape ∘ second)) | !'"'
+    Str       :=  value=str
 
     Bind      := [name=id %get_str, '=', value=Exp]
     Let       := [loc=:let %get_loc, rec=:rec.? % maybe_to_bool,
@@ -93,6 +83,8 @@ RBNF.@parser ReMLLang begin
     Module    := [loc=:module %get_loc, name=id_str, params=id_str{*}, :where, stmts=TopStmt{*}, :end.?]
 
     @token
+    comment   := @quote ("(*", "\\*)", "*)")
+    str       := @quote ("\"", "\\\"", "\"")
     id        := r"\G[A-Za-z_]{1}[A-Za-z0-9_]*"
     float     := r"\G([0-9]+\.[0-9]*|[0-9]*\.[0.9]+)([eE][-+]?[0-9]+)?"
     integer   := r"\G([1-9]+[0-9]*|0)"
