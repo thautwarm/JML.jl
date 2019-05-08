@@ -31,8 +31,10 @@ struct GoodSeq{T}
     tail :: Vector{T}
 end
 
+get_list(::Some{Nothing}) = []
+get_list(a::Some) = let (a, b) = a.value; [a, b...] end
 join_rule(sep, x) = begin
-    :([$x, ([$sep, $x] % second){*}] % x -> [x[1], x[2]...])
+    :([$x, ([$sep, $x] % second){*}].? % get_list)
 end
 
 Token = RBNF.Token
@@ -66,7 +68,7 @@ RBNF.@parser ReMLLang begin
                         br1=Exp,
                      :else,
                         br2=Exp]
-    Num       := [[neg="-"].? % maybe_to_bool, (int=integer) | (float=float)]
+    Num       := [neg="-".? % maybe_to_bool, (int=integer) | (float=float)]
     Boolean   := value=("true" | "false")
     NestedExpr = ['(', value=Exp, ')'] => _.value
     Var       := value=id %get_str
@@ -75,7 +77,7 @@ RBNF.@parser ReMLLang begin
     Atom      =  NestedExpr | Num | Str | Boolean | Var | List
     Attr      := [value=Atom, [loc='.', attr=id % get_str].?]
     Call      := [fn=Attr, args=Attr{*}]
-    List      := [loc='[', elts=Exp{*}, ']']
+    List      := [loc='[', elts=join_rule(',', Exp), ']']
     Comp      = Call | Let | Fun | Match | If | Block
     Op        := ['`', name=_, '`']
     Top       := [hd=Comp, tl=[Op, Comp]{*}]
@@ -85,8 +87,10 @@ RBNF.@parser ReMLLang begin
     id_str    = id%get_str
     Define    := [loc=:def %get_loc, name=id %get_str, '=', value=Exp]
     Infix     := [loc=:infix %get_loc, name=id %get_str, prec=integer %get_str, is_right="right".? % maybe_to_bool]
-    Stmt      = Define | Exp | Infix | Module
-    Module    := [loc=:module %get_loc, name=id_str, params=id_str{*}, :where, stmts=Stmt{*}, :end.?]
+    Import    := [loc=:import %get_loc, paths=join_rule(',', id_str)]
+    Stmt      =  Exp | Infix | Module | Import
+    TopStmt   = Define | Stmt
+    Module    := [loc=:module %get_loc, name=id_str, params=id_str{*}, :where, stmts=TopStmt{*}, :end.?]
 
     @token
     id        := r"\G[A-Za-z_]{1}[A-Za-z0-9_]*"
@@ -95,16 +99,15 @@ RBNF.@parser ReMLLang begin
     space     := r"\G\s+"
 end
 
-function parse(a, v :: Symbol)
-    parse(a, Val(v))
+function runparser(a, v :: Symbol)
+    runparser(a, Val(v))
 end
 
-function parse(a, v :: String)
-    parse(a, Symbol(v))
+function runparser(a, v :: String)
+    runparser(a, Symbol(v))
 end
 
-
-function parse(source_code :: String, ::Val{:source_code})
+function runparser(source_code :: String, ::Val{:rexp})
     tokens = RBNF.runlexer(ReMLLang, source_code)
     ast, ctx = RBNF.runparser(Module, tokens)
     if ctx.maxfetched >= ctx.tokens.length

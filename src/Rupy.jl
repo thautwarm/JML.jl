@@ -1,9 +1,16 @@
 module Rupy
 export to_lexp
-export parse
+export runparser
+export sa
+export global_scope
+export codegen
+
 include("Parser.jl")
 include("LExp.jl")
+include("DExp.jl")
+include("Codegen.jl")
 
-greet() = print("Hello World!")
-
+function runparser(source_code::String, ::Val{:lexp})
+    to_lexp(runparser(source_code, :rexp))
+end
 end # module

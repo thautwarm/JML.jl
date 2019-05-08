@@ -3,3 +3,7 @@
 *.jl.mem
 .DS_Store
 /Manifest.toml
+/builddir
+.vscode/
+
+
