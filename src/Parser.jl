@@ -78,8 +78,8 @@ RBNF.@parser ReMLLang begin
     Define    := [loc=:def %get_loc, name=id %get_str, '=', value=Exp]
     Infix     := [loc=:infix %get_loc, name=id %get_str, prec=integer %get_str, is_right="right".? % maybe_to_bool]
     Import    := [loc=:import %get_loc, paths=join_rule(',', id_str)]
-    Stmt      =  Exp | Infix | Module | Import
-    TopStmt   = Define | Stmt
+    Stmt      =  Exp | Infix | Module
+    TopStmt   = Define | Import | Stmt
     Module    := [loc=:module %get_loc, name=id_str, params=id_str{*}, :where, stmts=TopStmt{*}, :end.?]
 
     @token

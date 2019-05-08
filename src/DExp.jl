@@ -66,7 +66,7 @@ end
     DList(elts::Vector{DExp})
     DLoc(lineno::Int, colno::Int, val::DExp)
     DStaged(val :: Any)
-    DImport(paths::Vector{String}, name::String)
+    DImport(paths::Vector{String}, name::String, actual::String)
     DModule(modname::String, exports::Vector{Tuple{String, String}}, stmts::Vector{DExp})
 end
 
@@ -123,7 +123,7 @@ function sa(scope::Scope, lexp::LExp)
                                                    end
                                          end
                         LImport(paths, name) => let ss = enter!(scope, name)
-                                                    () -> DImport(paths, name)
+                                                    () -> DImport(paths, name, ss)
                                                 end
                         a => let a = a; () -> sa(scope, a) end
                     end
