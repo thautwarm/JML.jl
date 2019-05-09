@@ -44,6 +44,7 @@ RBNF.@parser ReMLLang begin
     @grammar
     # necessary
     Str       :=  value=str
+    Nil       := ["()"]
 
     Bind      := [name=id %get_str, '=', value=Exp]
     Let       := [loc=:let %get_loc, rec=:rec.? % maybe_to_bool,
@@ -63,8 +64,7 @@ RBNF.@parser ReMLLang begin
     NestedExpr = ['(', value=Exp, ')'] => _.value
     Var       := value=id %get_str
     Block     := [loc='{' %get_loc, stmts=Stmt{*}, '}']
-    Nil       := ['(', ')']
-    Atom      =  NestedExpr | Num | Str | Boolean | Var | List
+    Atom      =  Nil | NestedExpr | Num | Str | Boolean | Var | List
     Attr      := [value=Atom, attrs=(['.', id % get_str] % second){*}]
     Call      := [fn=Attr, args=Attr{*}]
     List      := [loc='[', elts=join_rule(',', Exp), ']']

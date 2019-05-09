@@ -83,13 +83,13 @@ mutable struct ModuleSpec
     exports        :: Dict{String, String}
     op_prec        :: Dict{String, Int}
     op_asoc        :: Dict{String, Bool}
-    dexp           :: Union{Nothing, DExp}
 end
 
-new_module_spec(name::String) = ModuleSpec(name, Dict{String, String}(), Dict{String, Int}(), Dict{String, Bool}(), nothing)
+new_module_spec(name::String) = ModuleSpec(name, Dict{String, String}(), Dict{String, Int}(), Dict{String, Bool}())
 
-function scoping_analysis(scope::Scope, lexp::LExp, modules::Dict{String, ModuleSpec}, RUPYPATH::String=ENV["RUPYPATH"])
+function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String, ModuleSpec}, RUPYPATH::String=ENV["RUPYPATH"])
     main = modules["main"]
+    exps = DExp[]
     function sa_mod(scope, lexp, modulespec::ModuleSpec)
         sa(scope, lexp) = sa_mod(scope, lexp, modulespec)
 
@@ -107,7 +107,6 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::Dict{String, Module
                         modules[qualified_name] = m
                         sa_mod(global_scope(), to_lexp(rexp), m)
                     end
-
                     if is_qual
                         enter!(scope, name)
                     else
@@ -119,6 +118,7 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::Dict{String, Module
                         for (each, _) in m.exports
                             if haskey(m.op_prec, each)
                                 modulespec.op_prec[each] = m.op_prec[each]
+                                modulespec.op_asoc[each] = m.op_asoc[each]
                             end
                         end
                     end
@@ -167,7 +167,12 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::Dict{String, Module
             LModule(modname, args, seq) =>
                 let paths = split(modulespec.name, '.'),
                     is_current = modname == paths[end],
-                    modulespec = is_current ? modulespec : new_module_spec(join([paths[1:end-1]..., modname])),
+                    modulespec = is_current ? modulespec : begin
+                        qualified_name = join([paths[1:end-1]..., modname])
+                        get!(modules, qualified_name) do
+                            new_module_spec(qualified_name)
+                        end
+                    end,
                     scope = is_current ? scope : new!(scope),
                     block = [],
                     pairs = Dict{String, String}()
@@ -211,10 +216,12 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::Dict{String, Module
                     let _ = for each in fs
                                 push!(block, each())
                             end
-                        DModule(modname, [(a, b) for (a, b) in pairs] , block)
+                        push!(exps, DModule(modname, [(a, b) for (a, b) in pairs] , block))
+                        DConst(nothing)
                     end
                 end
         end
     end
-    sa_mod(scope, lexp, main)
+    push!(exps, sa_mod(scope, lexp, main))
+    DModule("main", [], exps)
 end
