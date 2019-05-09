@@ -65,7 +65,7 @@ RBNF.@parser ReMLLang begin
     Block     := [loc='{' %get_loc, stmts=Stmt{*}, '}']
     Nil       := ['(', ')']
     Atom      =  NestedExpr | Num | Str | Boolean | Var | List
-    Attr      := [value=Atom, [loc='.', attr=id % get_str].?]
+    Attr      := [value=Atom, attrs=(['.', id % get_str] % second){*}]
     Call      := [fn=Attr, args=Attr{*}]
     List      := [loc='[', elts=join_rule(',', Exp), ']']
     Comp      = Call | Let | Fun | Match | If | Block
@@ -75,11 +75,14 @@ RBNF.@parser ReMLLang begin
     Exp       := [top=Top, [do_custom::Bool='{' => true, [custom=Custom].?, '}'].?]
 
     id_str    = id%get_str
-    Define    := [loc=:def %get_loc, name=id %get_str, '=', value=Exp]
-    Infix     := [loc=:infix %get_loc, name=id %get_str, prec=integer %get_str, is_right="right".? % maybe_to_bool]
-    Import    := [loc=:import %get_loc, paths=join_rule('.', id_str)]
-    Stmt      =  Exp | Infix | Module
-    TopStmt   = Define | Import | Stmt
+    Define    := [loc=:def %get_loc, name=id_str, '=', value=Exp]
+    Infix     := [loc=:infix %get_loc, name=id_str, prec=integer %get_str, is_right="right".? % maybe_to_bool]
+    Foreign   := [loc=:foreign %get_loc, paths=join_rule('.', id_str)]
+    Import    := [loc=:import %get_loc, is_qual=:qualified.? %maybe_to_bool, paths=join_rule('.', id_str)]
+    Ops       := [loc=:export %get_loc, names=id_str{*}]
+
+    Stmt      =  [Exp | Import | Module, ';'.?] % first
+    TopStmt   = Define | Import | Infix | Stmt | Foreign | Ops
     Module    := [loc=:module %get_loc, name=id_str, params=id_str{*}, :where, stmts=TopStmt{*}, :end.?]
 
     @token

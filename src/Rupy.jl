@@ -7,6 +7,7 @@ export codegen
 
 include("Parser.jl")
 include("LExp.jl")
+include("OpReduction.jl")
 include("DExp.jl")
 include("Codegen.jl")
 

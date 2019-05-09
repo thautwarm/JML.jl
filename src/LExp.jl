@@ -13,10 +13,13 @@ using DataStructures
     LDefine(String, LExp)
     LLoc(Any, LExp)
     LStaged(Any)
-    LImport(Vector{String}, String)
+
+    LImport(Bool, Vector{String}, String)
+    LForeign(Vector{String}, String)
+    LOps(Vector{String}) # exported operators
 
     LCustom(LExp, Vector{Tuple{String, LExp}})    # *
-    LInfix(String, Int, Bool)                     # *
+    LInfix(String, Int, Bool)
     LModule(String, Vector{String}, Vector{LExp}) # *
     LMatch(LExp, Vector{Tuple{LExp, LExp}})       # *
     LBin(Vector{Union{LExp, Token}})              # *
@@ -36,7 +39,9 @@ to_lexp(s::RBoolean) = LConst(s.value.str == "true" ? true : false)
 to_lexp(s:: RNil) = LConst(nothing)
 to_lexp(s:: RVar) = LVar(s.value)
 to_lexp(s:: RBlock) = LLoc(s.loc, LBlock([to_lexp(each) for each in s.stmts]))
-to_lexp(s:: RAttr) = s.attr === nothing ? to_lexp(s.value) : LLoc(s.loc, LAttr(to_lexp(s.value), s.attr))
+to_lexp(s:: RAttr) = isempty(s.attrs) ? to_lexp(s.value) : foldl(s.attrs, init=to_lexp(s.value)) do prev, attr
+                        LAttr(prev, attr)
+                     end
 to_lexp(s:: RCall) = isempty(s.args) ? to_lexp(s.fn) : LCall(to_lexp(s.fn), map(to_lexp, s.args))
 to_lexp(s:: RList) = LLoc(s.loc, LList([to_lexp(e) for e in s.elts]))
 to_lexp(s:: RTop) = isempty(s.tl) ? to_lexp(s.hd) : let tl = s.tl
@@ -63,13 +68,22 @@ function _pack(a::RCustom)
     s
 end
 _pack(::Nothing) = []
+to_lexp(s:: ROps)  = LLoc(s.loc, LOps(s.names))
 to_lexp(s:: RInfix) = LLoc(s.loc, LInfix(s.name, parse(Int, s.prec), s.is_right))
 to_lexp(s:: RExp) = !s.do_custom ? to_lexp(s.top) : LCustom(to_lexp(s.top), _pack(s.custom))
-to_lexp(s:: RDefine) = LDefine(s.name, to_lexp(s.value))
+to_lexp(s:: RDefine) = LLoc(s.loc, LDefine(s.name, to_lexp(s.value)))
+to_lexp(s:: RModule) = LLoc(s.loc, LModule(s.name, s.params, [to_lexp(e) for e in s.stmts]))
+
 to_lexp(s:: RImport) =
     @when let [init..., last] = s.paths
-        LLoc(s.loc, LImport(collect(init), last))
+        LLoc(s.loc, LImport(s.is_qual, collect(init), last))
     @otherwise
         throw("invalid import")
     end
-to_lexp(s:: RModule) = LLoc(s.loc, LModule(s.name, s.params, [to_lexp(e) for e in s.stmts]))
+
+to_lexp(s:: RForeign) =
+    @when let [init..., last] = s.paths
+        LLoc(s.loc, LForeign(collect(init), last))
+    @otherwise
+        throw("invalid foreign import")
+    end
