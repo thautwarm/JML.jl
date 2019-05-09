@@ -57,7 +57,7 @@ function require!(scope::Scope, k::String)
         push!(required_scopes, scope)
         scope = scope.parent
     end
-    throw("unknown name $k")
+    throw(NameUnresolved(k))
 end
 
 @data DExp begin
@@ -80,14 +80,22 @@ global_scope() = Scope(Ref(0), Dict{String, String}(), Hash(), nothing)
 
 mutable struct ModuleSpec
     name           :: String # for inspect
+    path           :: String
     exports        :: Dict{String, String}
     op_prec        :: Dict{String, Int}
     op_asoc        :: Dict{String, Bool}
 end
 
-new_module_spec(name::String) = ModuleSpec(name, Dict{String, String}(), Dict{String, Int}(), Dict{String, Bool}())
 
-function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String, ModuleSpec}, RUPYPATH::String=ENV["RUPYPATH"])
+
+new_module_spec(name::String, path :: String) = ModuleSpec(name, path, Dict{String, String}(), Dict{String, Int}(), Dict{String, Bool}())
+
+function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String, ModuleSpec})
+    RUPYPATH::String =
+        try ENV["RUPYPATH"]
+        catch e
+            throw(SimpleMessage("No environment vairable RUPYPATH."))
+        end
     main = modules["main"]
     exps = DExp[]
     function sa_mod(scope, lexp, modulespec::ModuleSpec)
@@ -100,10 +108,16 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String,
                     path = joinpath(RUPYPATH, paths..., name * ".pml")
                     m = get(modules, qualified_name, nothing)
                     if m === nothing
-                        (m, rexp) = open(path) do f
-                            rexp = runparser(read(f, String), :rexp)
-                            new_module_spec(qualified_name), rexp
-                        end
+                        (m, rexp) =
+                            try
+                                open(path) do f
+                                    rexp = runparser(read(f, String), :rexp)
+                                    new_module_spec(qualified_name, path), rexp
+                                end
+                            catch e
+                                throw(ModulePathNotFound(path, qualified_name))
+                            end
+
                         modules[qualified_name] = m
                         sa_mod(global_scope(), to_lexp(rexp), m)
                     end
@@ -124,13 +138,12 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String,
                     end
                     DConst(nothing)
                 end
-            _ => throw("hmmm")
+            _ => throw(SimpleMessage("hmmm, you encountered an internal error."))
             end
         end
 
         @match lexp begin
             LImport(_) && limport  => import!(limport, false, modulespec, scope)
-            LLoc(l, v)             => DLoc(l.lineno, l.colno, sa(scope, v))
             LStaged(v)             => DStaged(v)
             LAttr(value, attr)     => DAttr(sa(scope, value), attr)
             LList(elts)            => DList([sa(scope, elt) for elt in elts])
@@ -140,6 +153,15 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String,
             LConst(v)              => DConst(v)
             LIf(a, b, c)           => DIf(sa(scope, a), sa(scope, b), sa(scope, c))
             LBin(seq)              => sa(scope, binop_reduce(seq, modulespec.op_prec, modulespec.op_asoc))
+            LLoc(l, v)             =>
+                                      try DLoc(l.lineno, l.colno, sa(scope, v))
+                                      catch e
+                                        if e <: RupyCompileError
+                                        else
+                                            e = SimpleMessage(println(e))
+                                        end
+                                        throw(Positioned(l.lineno, l.colno, e))
+                                      end
             LLet(rec, binds, body) =>
                 if rec
                     ns = new!(scope)
@@ -170,7 +192,7 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String,
                     modulespec = is_current ? modulespec : begin
                         qualified_name = join([paths[1:end-1]..., modname])
                         get!(modules, qualified_name) do
-                            new_module_spec(qualified_name)
+                            new_module_spec(qualified_name, modulespec.path)
                         end
                     end,
                     scope = is_current ? scope : new!(scope),

@@ -1,10 +1,11 @@
 module Rupy
 export to_lexp
 export runparser
-export sa
+export scoping_analysis
 export global_scope
 export codegen
 
+include("Error.jl")
 include("Parser.jl")
 include("LExp.jl")
 include("OpReduction.jl")
