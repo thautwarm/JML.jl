@@ -1,5 +1,7 @@
 #=
 binary operation sequence reduction
+author: thautwarm
+You can redistribute this program and/or modify it under the terms of the BSD-3 license.
 =#
 using DataStructures
 
