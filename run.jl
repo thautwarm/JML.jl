@@ -6,7 +6,7 @@ Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
     midfilename = ARGS[2]
     outputfilename = ARGS[3]
     python = open(inputfilename) do f
-        codegen(read(f, String), :py)
+        codegen(read(f, String), inputfilename, :py)
     end
     open(midfilename, "w") do f
         println(f, "from rupy import Rupy")

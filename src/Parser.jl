@@ -88,7 +88,7 @@ RBNF.@parser ReMLLang begin
     @token
     comment   := @quote ("(*", "\\*)", "*)")
     str       := @quote ("\"", "\\\"", "\"")
-    id        := r"\G[A-Za-z_]{1}[A-Za-z0-9_]*"
+    id        := r"\G[A-Za-z_]{1}[A-Za-z0-9_\!]*"
     float     := r"\G([0-9]+\.[0-9]*|[0-9]*\.[0.9]+)([eE][-+]?[0-9]+)?"
     integer   := r"\G([1-9]+[0-9]*|0)"
     space     := r"\G\s+"

@@ -90,6 +90,19 @@ end
 
 new_module_spec(name::String, path :: String) = ModuleSpec(name, path, Dict{String, String}(), Dict{String, Int}(), Dict{String, Bool}())
 
+macro position_monitor(l, exp)
+    quote
+        try $exp
+        catch e
+        if e isa RupyCompileError
+        else
+            e = SimpleMessage(println(e))
+        end
+        throw(Positioned($l.lineno, $l.colno, e))
+        end
+    end |> esc
+end
+
 function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String, ModuleSpec})
     RUPYPATH::String =
         try ENV["RUPYPATH"]
@@ -153,15 +166,7 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String,
             LConst(v)              => DConst(v)
             LIf(a, b, c)           => DIf(sa(scope, a), sa(scope, b), sa(scope, c))
             LBin(seq)              => sa(scope, binop_reduce(seq, modulespec.op_prec, modulespec.op_asoc))
-            LLoc(l, v)             =>
-                                      try DLoc(l.lineno, l.colno, sa(scope, v))
-                                      catch e
-                                        if e <: RupyCompileError
-                                        else
-                                            e = SimpleMessage(println(e))
-                                        end
-                                        throw(Positioned(l.lineno, l.colno, e))
-                                      end
+            LLoc(l, v)             => DLoc(l.lineno, l.colno, @position_monitor l sa(scope, v))
             LLet(rec, binds, body) =>
                 if rec
                     ns = new!(scope)
@@ -202,31 +207,36 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String,
                         LLoc(_, ::LOps) => 1
                         _               => 0
                     end) # put LOps to tail
-                    map(seq) do each
+
+                    function analysis_top(each :: LExp)
                         @match each begin
-                            LLoc(l, LDefine(s, v)) =>
+                            LLoc(l, a) =>
+                                    let f = @position_monitor l analysis_top(a)
+                                        () -> DLoc(l.lineno, l.colno, @position_monitor l f())
+                                    end
+                            LDefine(s, v) =>
                                     let ss = enter!(scope, s),
                                         _ = pairs[s] = ss,
                                         v = v
                                         () ->
                                         let ns = new!(scope)
-                                            DLoc(l.lineno, l.colno, DAssign(ss, sa_mod(ns, v, modulespec)))
+                                            DAssign(ss, sa_mod(ns, v, modulespec))
                                         end
                                     end
-                            LLoc(l, LForeign(paths, name)) =>
+                            LForeign(paths, name) =>
                                     let ss = enter!(scope, name)
-                                        () -> DLoc(l.lineno, l.colno, DImport(paths, name, ss))
+                                        () -> DImport(paths, name, ss)
                                     end
-                            LLoc(l, LImport(_) && limport) =>
+                            LImport(_) && limport =>
                                     let a = import!(limport, true, modulespec, scope)
                                         () -> a
                                     end
-                            LLoc(l, LInfix(opname, prec, is_right)) =>
+                            LInfix(opname, prec, is_right) =>
                                     let _ = modulespec.op_prec[opname] = prec,
                                         _ = modulespec.op_asoc[opname] = is_right
                                         () -> DConst(nothing)
                                     end
-                            LLoc(l, LOps(names)) =>
+                            LOps(names) =>
                                     let _ = for each in names
                                                 modulespec.exports[each] = require!(scope, each)
                                             end
@@ -234,10 +244,13 @@ function scoping_analysis(scope::Scope, lexp::LExp, modules::OrderedDict{String,
                                     end
                             a => let a = a; () -> sa_mod(scope, a, modulespec) end
                         end
-                    end |> fs ->
-                    let _ = for each in fs
-                                push!(block, each())
-                            end
+                    end
+
+                    let fs = map(analysis_top, seq)
+
+                        for each in fs
+                            push!(block, each())
+                        end
                         push!(exps, DModule(modname, [(a, b) for (a, b) in pairs] , block))
                         DConst(nothing)
                     end
