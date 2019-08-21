@@ -42,7 +42,7 @@ to_lexp(s:: RBlock) = LLoc(s.loc, LBlock([to_lexp(each) for each in s.stmts]))
 to_lexp(s:: RAttr) = isempty(s.attrs) ? to_lexp(s.value) : foldl(s.attrs, init=to_lexp(s.value)) do prev, attr
                         LAttr(prev, attr)
                      end
-to_lexp(s:: RCall) = isempty(s.args) ? to_lexp(s.fn) : LCall(to_lexp(s.fn), map(to_lexp, s.args))
+to_lexp(s:: RCall) = s.args === nothing ? to_lexp(s.fn) : LCall(to_lexp(s.fn), map(to_lexp, s.args))
 to_lexp(s:: RList) = LLoc(s.loc, LList([to_lexp(e) for e in s.elts]))
 to_lexp(s:: RTop) = isempty(s.tl) ? to_lexp(s.hd) : let tl = s.tl
         binseq = Union{LExp, Token}[]

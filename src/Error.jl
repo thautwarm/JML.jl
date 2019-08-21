@@ -1,26 +1,25 @@
-abstract type RupyCompileError <: Exception end
-struct Positioned <: RupyCompileError
+abstract type JMLCompilerError <: Exception end
+struct Positioned <: JMLCompilerError
     lineno :: Int
     colno  :: Int
-    err    :: RupyCompileError
+    err    :: JMLCompilerError
 end
 
-struct NameUnresolved <: RupyCompileError
+struct NameUnresolved <: JMLCompilerError
     name :: String
 end
 
-struct SimpleMessage <: RupyCompileError
+struct SimpleMessage <: JMLCompilerError
     msg :: String
 end
 
-struct ModulePathNotFound <: RupyCompileError
-    path    :: String
+struct ModulePathNotFound <: JMLCompilerError
     modname :: String
 end
 
-struct ComposeExc <: RupyCompileError
-    first :: RupyCompileError
-    next  :: RupyCompileError
+struct ComposeExc <: JMLCompilerError
+    first :: JMLCompilerError
+    next  :: JMLCompilerError
 end
 
 print_exc(io, a :: Positioned) =
@@ -35,7 +34,7 @@ print_exc(io, a :: NameUnresolved) =
 
 print_exc(io, a :: ModulePathNotFound) =
      begin
-        println(io, "Path of module $(a.modname) didn't exist at $(a.path)")
+        println(io, "Path of module $(a.modname) didn't exist in current JMLPATH")
      end
 print_exc(io, a :: SimpleMessage) =
      begin
@@ -46,3 +45,5 @@ print_exc(io, a :: ComposeExc) =
         print_exc(io, a.first)
         print_exc(io, a.next)
      end
+
+Base.show(io::IO, a::JMLCompilerError) = print_exc(io, a)

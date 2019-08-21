@@ -1,4 +1,5 @@
 using PrettyPrint
+
 PrettyPrint.pprint_impl(io, data::DConst{Nothing}, _, _) where T = begin
     print(io, "Rupy.DConst(v=None)")
 end
@@ -35,7 +36,7 @@ codegen(source_code :: String, fname :: String, target::Val{:py}) =
         try
             pformat(scoping_analysis(scope, lexp, modules))
         catch e
-            if e isa RupyCompileError
+            if e isa JMLCompilerError
                 print_exc(stdout, e)
             else
                 println("Not covered exception")

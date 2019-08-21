@@ -1,0 +1,2 @@
+class Closure:
+    def __init__(self, 

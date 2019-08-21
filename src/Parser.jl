@@ -51,7 +51,7 @@ RBNF.@parser ReMLLang begin
                         binds=join_rule(:and, Bind),
                      :in, body=Exp]
 
-    Fun       := [loc=:fn %get_loc, args=(id % get_str){*}, "->", body=Exp]
+    Fun       := [loc=:fn %get_loc, "(", args=join_rule(",", (id % get_str)), ")", "->", body=Exp]
     Match     := [loc=:match %get_loc, sc=Exp, :with,
                         cases=(['|', Comp, "->", Exp] % ((_, case, _, body), ) -> (case, body)){*},
                     :end.?] # end for nested match
@@ -66,7 +66,7 @@ RBNF.@parser ReMLLang begin
     Block     := [loc='{' %get_loc, stmts=Stmt{*}, '}']
     Atom      =  Nil | NestedExpr | Num | Str | Boolean | Var | List
     Attr      := [value=Atom, attrs=(['.', id % get_str] % second){*}]
-    Call      := [fn=Attr, args=Attr{*}]
+    Call      := [fn=Attr, ['(', args = join_rule(",", Attr), ')'].?]
     List      := [loc='[', elts=join_rule(',', Exp), ']']
     Comp      = Call | Let | Fun | Match | If | Block
     Op        := ['`', name=_, '`']
@@ -102,9 +102,13 @@ function runparser(a, v :: String)
     runparser(a, Symbol(v))
 end
 
-function runparser(source_code :: String, ::Val{:rexp})
+struct ParserFailed <: Exception
+    msg :: String
+end
+
+function runparser(parser :: F, source_code :: String, ::Val{:rexp}) where F <: Function
     tokens = RBNF.runlexer(ReMLLang, source_code)
-    ast, ctx = RBNF.runparser(Module, tokens)
+    ast, ctx = RBNF.runparser(parser, tokens)
     if ctx.maxfetched >= ctx.tokens.length
         return ast
     end
@@ -112,5 +116,17 @@ function runparser(source_code :: String, ::Val{:rexp})
     lineno = token.lineno
     colno = token.colno
     str   = token.str
-    throw("parsing error at $(repr(str)) at lineno $lineno, colno $colno")
+    throw(ParserFailed("parsing error at $(repr(str)) at lineno $lineno, colno $colno"))
+end
+
+function runparser(source_code :: String, repr_form::Val, mode::Val{:module})
+    runparser(Module, source_code, repr_form)
+end
+
+function runparser(source_code :: String, repr_form::Val, mode::Val{:stmt})
+    runparser(TopStmt, source_code, repr_form)
+end
+
+function runparser(source_code :: String, repr_form::Symbol, mode::Symbol)
+    runparser(Module, source_code, Val(repr_form), Val(mode))
 end

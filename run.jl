@@ -1,4 +1,4 @@
-using Rupy
+using JML
 using PrettyPrint
 
 Base.@ccallable function julia_main(ARGS::Vector{String})::Cint
