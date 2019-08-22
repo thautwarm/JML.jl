@@ -23,15 +23,10 @@ end
             end
         DClosure(freevars, argnames, body) =>
             # julia already has closures, so no need to create a new impl
-            let binds = map((s -> :($s = $s)) ∘ Symbol, freevars),
-                argnames = map(Symbol, argnames)
-
-                Expr(:let,
-                    Expr(:block, binds...),
-                    Expr(:function,
-                        Expr(:tuple, argnames...),
-                        !body
-                    )
+            let argnames = map(Symbol, argnames)
+                Expr(:function,
+                    Expr(:tuple, argnames...),
+                    !body
                 )
             end
         DIf(cond, trueClause, falseClause) =>

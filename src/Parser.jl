@@ -43,8 +43,6 @@ RBNF.@parser ReMLLang begin
 
     @grammar
     # necessary
-    Str       :=  value=str
-    Nil       := ["()"]
 
     Bind      := [name=id %get_str, '=', value=Exp]
     Let       := [loc=:let %get_loc, rec=:rec.? % maybe_to_bool,
@@ -59,14 +57,12 @@ RBNF.@parser ReMLLang begin
                         br1=Exp,
                      :else,
                         br2=Exp]
-    Num       := [neg="-".? % maybe_to_bool, (int=integer) | (float=float)]
-    Boolean   := value=("true" | "false")
     NestedExpr = ['(', value=Exp, ')'] => _.value
     Var       := value=id %get_str
     Block     := [loc='{' %get_loc, stmts=Stmt{*}, '}']
     Atom      =  Nil | NestedExpr | Num | Str | Boolean | Var | List
     Attr      := [value=Atom, attrs=(['.', id % get_str] % second){*}]
-    Call      := [fn=Attr, ['(', args = join_rule(",", Attr), ')'].?]
+    Call      := [fn=Attr, ['(', args = join_rule(",", Exp), ')'].?]
     List      := [loc='[', elts=join_rule(',', Exp), ']']
     Comp      = Call | Let | Fun | Match | If | Block
     Op        := ['`', name=_, '`']
@@ -84,6 +80,11 @@ RBNF.@parser ReMLLang begin
     Stmt      =  [Exp | Import | Module, ';'.?] % first
     TopStmt   = Define | Import | Infix | Stmt | Foreign | Ops
     Module    := [loc=:module %get_loc, name=id_str, params=id_str{*}, :where, stmts=TopStmt{*}, :end.?]
+
+    Str       :=  value=str
+    Nil       := ["()"]
+    Num       := [neg="-".? % maybe_to_bool, (int=integer) | (float=float)]
+    Boolean   := value=("true" | "false")
 
     @token
     comment   := @quote ("(*", "\\*)", "*)")

@@ -1,0 +1,46 @@
+module base where
+    foreign Base
+    foreign DataStructures
+    export sym
+    export get sub add eq mul
+    export cons app println
+    infix get 2
+    infix add 4
+    infix sub 4
+    infix mul 6
+    infix eq  1
+    infix cons 1 right
+    infix app  0 right
+    def sym = Base.Symbol
+    def get = Base.getproperty
+    def add = Base `get` sym("+")
+    def sub = Base `get` sym("-")
+    def mul = Base `get` sym("*")
+    def println = Base.println
+    def cons = DataStructures.cons
+    def app = fn (f, x) -> f(x)
+    def eq  = Base `get` sym("==")
+
+
+import main.base
+
+1 `cons` 2 `add` 3 `mul` 4 `cons` []
+
+
+def f = fn (x) -> {
+    println `app` "123"
+    println `app` x
+    3 `add` x
+}
+
+f(10)
+
+def fix =
+    let rec fix = fn(f, x) ->
+        f(fn (x) -> fix(f, x), x)
+    in fix
+
+let f = fn (self, x) ->
+    if x `eq` 0 then 1
+    else self(x `sub` 1) `add` x
+in fix(f, 100)

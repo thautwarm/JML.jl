@@ -4,6 +4,9 @@ using ReplMaker
 using JML
 using REPL.LineEdit
 
+# a bug of julia? workaround:
+Base.convert(::Type{Symbol}, a::Int) = Symbol(a)
+
 const repl_scope = global_scope()
 const repl_main = new_module_spec("main", "<repl>")
 const repl_modules = OrderedDict("main" => repl_main)
@@ -29,11 +32,7 @@ function parse_jml_expr(s)
             modules=repl_modules
         )
     catch e
-        if e isa JMLCompilerError
-            println(string(e))
-        else
-            throw(e)
-        end
+        println(string(e))
     end
 end
 
